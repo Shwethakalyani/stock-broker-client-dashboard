@@ -3,15 +3,29 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 2000;
 
+/* ✅ Express CORS */
+app.use(cors({
+  origin: "https://stock-broker-client.vercel.app",
+  methods: ["GET", "POST"],
+  credentials: true
+}));
+
+/* ✅ Socket.IO CORS */
 const io = new Server(server, {
-  cors: { origin: "*" },
+  cors: {
+    origin: "https://stock-broker-client.vercel.app",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 });
+
 
 // Supported tickers
 const TICKERS = ["GOOG", "TSLA", "AMZN", "META", "NVDA"];
