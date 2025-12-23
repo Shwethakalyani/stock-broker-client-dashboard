@@ -1,9 +1,6 @@
-// client/src/socket.js
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "http://localhost:2000"; // backend port
-
-const socket = io(SOCKET_URL, {
+const socket = io("https://stock-broker-client-dashboard-j6jp.onrender.com", {
   transports: ["websocket"],
 });
 

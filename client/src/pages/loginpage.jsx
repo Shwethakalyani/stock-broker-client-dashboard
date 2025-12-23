@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import "./Login.css";
+import "../styles/login.css";
 
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState("");
 
   const submit = () => {
-    if (email.trim() === "") return;
+    if (!email.trim()) return;
     onLogin(email);
   };
 
@@ -16,6 +16,7 @@ export default function LoginPage({ onLogin }) {
       <input
         type="email"
         placeholder="Enter your email"
+        value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
 

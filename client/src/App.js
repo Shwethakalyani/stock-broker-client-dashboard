@@ -10,11 +10,9 @@ const STOCK_IMAGES = {
   GOOG: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
   TSLA: "https://upload.wikimedia.org/wikipedia/commons/b/bd/Tesla_Motors.svg",
   AMZN: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
-  META: "https://upload.wikimedia.org/wikipedia/commons/0/05/Meta_Platforms_Inc._logo.svg",
+  META: "/meta-logo-png.png",
   NVDA: "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo.svg",
 };
-
-
 
 function App() {
   const [email, setEmail] = useState("");
@@ -24,25 +22,16 @@ function App() {
   const [prices, setPrices] = useState({});
   const [logs, setLogs] = useState([]);
 
-  /* Socket listeners */
+  /* ✅ Correct Socket Listener */
   useEffect(() => {
-    socket.on("price_update", ({ ticker, price }) => {
+    const handlePrice = ({ ticker, price }) => {
       setPrices((prev) => ({ ...prev, [ticker]: price }));
-    });
+    };
 
-    socket.on("logged_in", ({ email }) => {
-      setLoggedInAs(email);
-      addLog(`Logged in as ${email}`);
-    });
-
-    socket.on("error_msg", ({ msg }) => {
-      addLog(`Error: ${msg}`);
-    });
+    socket.on("priceUpdate", handlePrice);
 
     return () => {
-      socket.off("price_update");
-      socket.off("logged_in");
-      socket.off("error_msg");
+      socket.off("priceUpdate", handlePrice);
     };
   }, []);
 
@@ -53,10 +42,13 @@ function App() {
     ].slice(0, 40));
   }
 
+  /* ✅ Client-side login only */
   function handleLogin(e) {
     e.preventDefault();
-    if (!email) return alert("Please enter your email");
-    socket.emit("login", { email });
+    if (!email.trim()) return alert("Enter email");
+    setLoggedInAs(email);
+    socket.emit("join", email);
+    addLog(`Logged in as ${email}`);
   }
 
   function toggleSubscribe(ticker) {
@@ -66,7 +58,6 @@ function App() {
     }
 
     if (subscriptions.includes(ticker)) {
-      socket.emit("unsubscribe", { ticker });
       setSubscriptions((s) => s.filter((t) => t !== ticker));
       addLog(`Unsubscribed from ${ticker}`);
     } else {
@@ -80,10 +71,12 @@ function App() {
     <div className="app">
       {/* HEADER */}
       <header className="header">
-        <h1>Stock Broker Client Dashboard</h1>
+        <h1>📈 Stock Broker Client Dashboard</h1>
 
         {loggedInAs ? (
-          <div>Logged in as <strong>{loggedInAs}</strong></div>
+          <div>
+            Logged in as <strong>{loggedInAs}</strong>
+          </div>
         ) : (
           <form onSubmit={handleLogin} style={{ display: "flex", gap: 8 }}>
             <input
