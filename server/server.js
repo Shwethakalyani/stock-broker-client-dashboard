@@ -10,27 +10,44 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 2000;
 
-/* ✅ Express CORS */
-app.use(cors({
-  origin: "https://stock-broker-client.vercel.app",
-  methods: ["GET", "POST"],
-  credentials: true
-}));
+/* ✅ Allowed Frontend Origins */
+const allowedOrigins = [
+  "https://stock-broker-client-dashboard.vercel.app",
+  "https://www.stock-broker-client-dashboard.vercel.app",
+  "http://localhost:3000",
+];
 
-/* ✅ Socket.IO CORS */
+/* ✅ Express CORS (Mobile Safe) */
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: false,
+  })
+);
+
+app.use(express.json());
+
+/* ✅ Socket.IO (WebSocket only – Mobile Friendly) */
 const io = new Server(server, {
   cors: {
-    origin: "https://stock-broker-client.vercel.app",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: false,
+  },
+  transports: ["websocket"],
 });
 
+/* ===================== STOCK LOGIC ===================== */
 
-// Supported tickers
 const TICKERS = ["GOOG", "TSLA", "AMZN", "META", "NVDA"];
 
-// Base prices (seed)
 let basePrice = {
   GOOG: 2800,
   TSLA: 700,
@@ -39,62 +56,58 @@ let basePrice = {
   NVDA: 180,
 };
 
-// When client connects
 io.on("connection", (socket) => {
-  console.log("client connected", socket.id);
+  console.log("✅ Client connected:", socket.id);
 
-  // login with email — we store it in socket.data.email and join a room for the user
-  socket.on("login", ({ email }) => {
-    if (!email) return;
-    socket.data.email = email;
-    socket.join(`user:${email}`);
-    console.log(`socket ${socket.id} logged in as ${email}`);
-    // Optionally send back confirmation
-    socket.emit("logged_in", { email });
+  socket.on("join", (user) => {
+    console.log("User joined:", user);
   });
 
-  // subscribe to a ticker -> join ticker room
   socket.on("subscribe", ({ ticker }) => {
-    if (!TICKERS.includes(ticker)) {
-      socket.emit("error_msg", { msg: "Unsupported ticker" });
-      return;
-    }
+    if (!TICKERS.includes(ticker)) return;
+
     socket.join(`ticker:${ticker}`);
     console.log(`${socket.id} subscribed to ${ticker}`);
-    // send immediate current price snapshot
-    socket.emit("price_update", { ticker, price: basePrice[ticker], ts: Date.now() });
-  });
 
-  socket.on("unsubscribe", ({ ticker }) => {
-    socket.leave(`ticker:${ticker}`);
-    console.log(`${socket.id} unsubscribed from ${ticker}`);
+    socket.emit("priceUpdate", {
+      ticker,
+      price: basePrice[ticker],
+    });
   });
 
   socket.on("disconnect", () => {
-    console.log("client disconnected", socket.id);
+    console.log("❌ Client disconnected:", socket.id);
   });
 });
 
-// Generate a new random price for a ticker (random walk)
+/* ===================== PRICE ENGINE ===================== */
+
 function generatePrice(ticker) {
-  const base = basePrice[ticker] ?? 100;
-  const changePct = (Math.random() - 0.5) * 0.04; // -2% .. +2%
-  const newPrice = +(base * (1 + changePct)).toFixed(2);
+  const base = basePrice[ticker];
+  const change = (Math.random() - 0.5) * 0.04;
+  const newPrice = +(base * (1 + change)).toFixed(2);
   basePrice[ticker] = newPrice;
   return newPrice;
 }
 
-// Emit price updates every second per ticker to its room
 setInterval(() => {
   for (const t of TICKERS) {
     const price = generatePrice(t);
-    io.to(`ticker:${t}`).emit("price_update", { ticker: t, price, ts: Date.now() });
+    io.to(`ticker:${t}`).emit("priceUpdate", {
+      ticker: t,
+      price,
+    });
   }
 }, 1000);
 
-// basic index route
+/* ===================== HEALTH CHECK ===================== */
+
 app.get("/", (req, res) => {
-  res.json({ msg: "Stock price server running" });
+  res.json({ status: "OK", message: "Stock price server running" });
 });
 
-server.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+/* ===================== START SERVER ===================== */
+
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
