@@ -24,8 +24,17 @@ const io = new Server(server, {
     origin: "*",
     methods: ["GET", "POST"],
   },
-  transports: ["polling", "websocket"],
+  transports: ["polling", "websocket"], // mobile safe
 });
+
+
+/* ✅ EXPRESS CORS — HERE */
+app.use(
+  cors({
+    origin: "*",        // allow all (safe for demo/project)
+    methods: ["GET", "POST"],
+  })
+);
 
 // Supported stocks
 const TICKERS = ["GOOG", "TSLA", "AMZN", "META", "NVDA"];
